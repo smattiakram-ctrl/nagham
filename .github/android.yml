@@ -1,0 +1,47 @@
+name: Build APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+
+      - run: npm install
+      - run: npm run build
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+
+      - run: npx cap add android
+
+      - name: Fixed signing key + OAuth redirect scheme
+        env:
+          CID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: |
+          mkdir -p ~/.android && cp debug.keystore ~/.android/debug.keystore
+          export SCHEME="com.googleusercontent.apps.${CID%%.*}"
+          python3 - <<'PY'
+          import os
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p, encoding='utf-8').read()
+          f = ('<intent-filter><action android:name="android.intent.action.VIEW"/>'
+               '<category android:name="android.intent.category.DEFAULT"/>'
+               '<category android:name="android.intent.category.BROWSABLE"/>'
+               '<data android:scheme="%s"/></intent-filter>') % os.environ['SCHEME']
+          open(p, 'w', encoding='utf-8').write(s.replace('</activity>', f + '</activity>', 1))
+          PY
+
+      - run: npx cap sync android
+      - run: cd android && ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nagham-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
