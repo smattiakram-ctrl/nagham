@@ -1,0 +1,5 @@
+@import "tailwindcss";
+html, body, #root { height: 100%; margin: 0; background: #0b0714; color: #fff;
+  font-family: "Noto Sans Arabic", "Segoe UI", system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+input[type=range] { accent-color: #e879f9; }
+::-webkit-scrollbar { display: none; }
